@@ -1,0 +1,110 @@
+# Copyright IBM Corp. All Rights Reserved.
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+version: '2'
+
+services:
+
+  orderer.itcast.com:  # 服务名，在docker-compose-cli.yaml中被继承
+    container_name: orderer.itcast.com
+    extends:
+      file: peer-base.yaml
+      service: orderer-base
+    volumes:
+        - ../channel-artifacts/genesis.block:/var/hyperledger/orderer/orderer.genesis.block
+        - ../crypto-config/ordererOrganizations/itcast.com/orderers/orderer.itcast.com/msp:/var/hyperledger/orderer/msp
+        - ../crypto-config/ordererOrganizations/itcast.com/orderers/orderer.itcast.com/tls/:/var/hyperledger/orderer/tls
+        - orderer.itcast.com:/var/hyperledger/production/orderer
+    ports:
+      - 7050:7050  # 前面的7050（宿主机）可以改，后面的不能改（docker容器）
+
+  peer0.orggo.itcast.com:
+    container_name: peer0.orggo.itcast.com
+    extends:
+      file: peer-base.yaml
+      service: peer-base
+    environment:
+      - CORE_PEER_ID=peer0.orggo.itcast.com            # peer节点的名字
+      - CORE_PEER_ADDRESS=peer0.orggo.itcast.com:7051  # peer节点的地址信息
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:7051          
+      - CORE_PEER_CHAINCODEADDRESS=peer0.orggo.itcast.com:7052  # 链码地址
+      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:7052 # 
+      - CORE_PEER_GOSSIP_BOOTSTRAP=peer1.orggo.itcast.com:8051  # 启动的时候，指定谁连接谁，写自己就行了
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer0.orggo.itcast.com:7051 #为了被其它节点被感知到，别的节点不知道该节点存在
+      - CORE_PEER_LOCALMSPID=OrgGoMSP      # 当前所属的组ID
+    volumes:
+        - /var/run/:/host/var/run/
+        - ../crypto-config/peerOrganizations/orggo.itcast.com/peers/peer0.orggo.itcast.com/msp:/etc/hyperledger/fabric/msp
+        - ../crypto-config/peerOrganizations/orggo.itcast.com/peers/peer0.orggo.itcast.com/tls:/etc/hyperledger/fabric/tls
+        - peer0.orggo.itcast.com:/var/hyperledger/production
+    ports:
+      - 7051:7051
+
+  peer1.orggo.itcast.com:
+    container_name: peer1.orggo.itcast.com
+    extends:
+      file: peer-base.yaml
+      service: peer-base
+    environment:
+      - CORE_PEER_ID=peer1.orggo.itcast.com
+      - CORE_PEER_ADDRESS=peer1.orggo.itcast.com:8051
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:8051
+      - CORE_PEER_CHAINCODEADDRESS=peer1.orggo.itcast.com:8052
+      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:8052
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer1.orggo.itcast.com:8051
+      - CORE_PEER_GOSSIP_BOOTSTRAP=peer0.orggo.itcast.com:7051
+      - CORE_PEER_LOCALMSPID=OrgGoMSP
+    volumes:
+        - /var/run/:/host/var/run/
+        - ../crypto-config/peerOrganizations/orggo.itcast.com/peers/peer1.orggo.itcast.com/msp:/etc/hyperledger/fabric/msp
+        - ../crypto-config/peerOrganizations/orggo.itcast.com/peers/peer1.orggo.itcast.com/tls:/etc/hyperledger/fabric/tls
+        - peer1.orggo.itcast.com:/var/hyperledger/production
+
+    ports:
+      - 8051:8051
+
+  peer0.orgcpp.itcast.com:
+    container_name: peer0.orgcpp.itcast.com
+    extends:
+      file: peer-base.yaml
+      service: peer-base
+    environment:
+      - CORE_PEER_ID=peer0.orgcpp.itcast.com
+      - CORE_PEER_ADDRESS=peer0.orgcpp.itcast.com:9051
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:9051
+      - CORE_PEER_CHAINCODEADDRESS=peer0.orgcpp.itcast.com:9052
+      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:9052
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer0.orgcpp.itcast.com:9051
+      - CORE_PEER_GOSSIP_BOOTSTRAP=peer1.orgcpp.itcast.com:10051
+      - CORE_PEER_LOCALMSPID=OrgCppMSP
+    volumes:
+        - /var/run/:/host/var/run/
+        - ../crypto-config/peerOrganizations/orgcpp.itcast.com/peers/peer0.orgcpp.itcast.com/msp:/etc/hyperledger/fabric/msp
+        - ../crypto-config/peerOrganizations/orgcpp.itcast.com/peers/peer0.orgcpp.itcast.com/tls:/etc/hyperledger/fabric/tls
+        - peer0.orgcpp.itcast.com:/var/hyperledger/production
+    ports:
+      - 9051:9051
+
+  peer1.orgcpp.itcast.com:
+    container_name: peer1.orgcpp.itcast.com
+    extends:
+      file: peer-base.yaml
+      service: peer-base
+    environment:
+      - CORE_PEER_ID=peer1.orgcpp.itcast.com
+      - CORE_PEER_ADDRESS=peer1.orgcpp.itcast.com:10051
+      - CORE_PEER_LISTENADDRESS=0.0.0.0:10051
+      - CORE_PEER_CHAINCODEADDRESS=peer1.orgcpp.itcast.com:10052
+      - CORE_PEER_CHAINCODELISTENADDRESS=0.0.0.0:10052
+      - CORE_PEER_GOSSIP_EXTERNALENDPOINT=peer1.orgcpp.itcast.com:10051
+      - CORE_PEER_GOSSIP_BOOTSTRAP=peer0.orgcpp.itcast.com:9051
+      - CORE_PEER_LOCALMSPID=OrgCppMSP
+    volumes:
+        - /var/run/:/host/var/run/
+        - ../crypto-config/peerOrganizations/orgcpp.itcast.com/peers/peer1.orgcpp.itcast.com/msp:/etc/hyperledger/fabric/msp
+        - ../crypto-config/peerOrganizations/orgcpp.itcast.com/peers/peer1.orgcpp.itcast.com/tls:/etc/hyperledger/fabric/tls
+        - peer1.orgcpp.itcast.com:/var/hyperledger/production
+    ports:
+        - 10051:10051

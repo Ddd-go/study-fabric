@@ -1,0 +1,100 @@
+# Copyright IBM Corp. All Rights Reserved.
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+version: '2'
+
+# 本地的映射目录在/var/lib/docker/volumes/orderer.test.com
+volumes:
+  orderer.itcast.com:
+  peer0.orggo.itcast.com:
+  peer1.orggo.itcast.com:
+  peer0.orgcpp.itcast.com:
+  peer1.orgcpp.itcast.com:
+# 相互通信必须保证在同一个网络中
+networks:
+  byfn:
+
+services:  # 如下有6个服务，即启动6个docker容器，每个服务的容器会分别对应各自的镜像（image，有个地址）
+
+  orderer.itcast.com:
+    extends:
+      file:   base/docker-compose-base.yaml
+      service: orderer.itcast.com
+    container_name: orderer.itcast.com
+    networks:
+      - byfn
+
+  peer0.orggo.itcast.com:
+    container_name: peer0.orggo.itcast.com
+    extends:
+      file:  base/docker-compose-base.yaml
+      service: peer0.orggo.itcast.com
+    networks:
+      - byfn
+
+  peer1.orggo.itcast.com:
+    container_name: peer1.orggo.itcast.com
+    extends:  # 继承了一些属性
+      file:  base/docker-compose-base.yaml
+      service: peer1.orggo.itcast.com
+    networks:
+      - byfn
+
+  peer0.orgcpp.itcast.com:
+    container_name: peer0.orgcpp.itcast.com
+    extends:
+      file:  base/docker-compose-base.yaml
+      service: peer0.orgcpp.itcast.com
+    networks:
+      - byfn
+
+  peer1.orgcpp.itcast.com:
+    container_name: peer1.orgcpp.itcast.com
+    extends:
+      file:  base/docker-compose-base.yaml
+      service: peer1.orgcpp.itcast.com
+    networks:
+      - byfn
+
+  cli:   # 客户端角色，当然如果有SDK，也是一样的
+    container_name: cli
+    image: hyperledger/fabric-tools:latest  # 镜像，fabric-tools是下载下来的镜像
+    tty: true         # 终端是打开的
+    stdin_open: true  # 标准输入是打开的
+    environment:      # 环境变量
+      - SYS_CHANNEL=sc
+      - GOPATH=/opt/gopath  # 客户端docker启动之后，go的工作目录，不需要修改
+      # docker容器之后，对应的守护进程套接字，不修改
+      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock  
+      - FABRIC_LOGGING_SPEC=DEBUG 
+      #- FABRIC_LOGGING_SPEC=INFO # 日志级别
+      - CORE_PEER_ID=cli          # 目前客户端节点的ID，自己指定
+      - CORE_PEER_ADDRESS=peer0.orggo.itcast.com:7051  # 客户端连接到peer节点，先拿go组织的peer0为例
+      - CORE_PEER_LOCALMSPID=OrgGoMSP  # 组织ID
+      - CORE_PEER_TLS_ENABLED=true     # 是否使用tls加密
+      # 证书文件
+      - CORE_PEER_TLS_CERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/orggo.itcast.com/peers/peer0.orggo.itcast.com/tls/server.crt
+      # 私钥文件
+      - CORE_PEER_TLS_KEY_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/orggo.itcast.com/peers/peer0.orggo.itcast.com/tls/server.key
+      # 根证书文件
+      - CORE_PEER_TLS_ROOTCERT_FILE=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/orggo.itcast.com/peers/peer0.orggo.itcast.com/tls/ca.crt
+      # 指定当前客户端是什么身份（证书），例如管理员用户就与普通用户不一样，如下就是指定的管理员身份
+      - CORE_PEER_MSPCONFIGPATH=/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/orggo.itcast.com/users/Admin@orggo.itcast.com/msp
+    working_dir: /opt/gopath/src/github.com/hyperledger/fabric/peer
+    command: /bin/bash
+    volumes:  # 卷的挂载
+        - /var/run/:/host/var/run/
+        - ./../chaincode/:/opt/gopath/src/github.com/chaincode
+        - ./crypto-config:/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/
+       # - ./scripts:/opt/gopath/src/github.com/hyperledger/fabric/peer/scripts/ 
+        - ./channel-artifacts:/opt/gopath/src/github.com/hyperledger/fabric/peer/channel-artifacts
+    depends_on: # 规定启动顺序
+      - orderer.itcast.com
+      - peer0.orggo.itcast.com
+      - peer1.orggo.itcast.com
+      - peer0.orgcpp.itcast.com
+      - peer1.orgcpp.itcast.com
+    networks:
+      - byfn
