@@ -1,4 +1,4 @@
-# fabric配置网络
+fabric配置网络
 
 ## 五个核心模块
 
@@ -12,6 +12,12 @@
 
 1. `configtxlator`：两个用途：a. 将.block文件转换为json格式；b. 之后进行动态添加组织
 
+   > 环境
+   >
+   > - go 1.13.3
+   >
+   > 注意：itcast文件不要放在GOPATH中
+   
    > 本次配置的需求是：三个组织（ordeeerOrg、GoOrg、CppOrg），ordeeerOrg只有一个节点，GoOrg有两个节点、三个用户，CppOrg有两个节点、三个用户
 
 # 1. 生成证书 -- 用cryptogen
@@ -1799,25 +1805,39 @@ $ peer channel join -b xxxx.block
 >
 > - 操作链代码 
 
-#### 5.1安装链代码
+#### 5.0 配置go包
+
+> 我将go升级到了1.13.3，采用gomod形式管理，项目itcast不要放在src之下
+
+- 先编写好链码
+
+- 然后在链码所在文件夹
+
+  ```shell
+  $ go mod init chaincode_example02 # chaincode_example02 这是我使用的测试链码的名字
+  ```
+
+- 下载所需要的包
+
+  ```shell
+  go get github.com/hyperledger/fabric/common/util@v1.4 //1.4版本
+  
+  go get github.com/hyperledger/fabric/core/chaincode/shim@v1.4
+  
+  go get github.com/hyperledger/fabric/protos/peer@v1.4
+  ```
+
+- 在本地build链码，如果成功则进入下一步
+
+#### 5.1 安装链代码
 
 > 每个节点都需要安装链代码，我们先从fabric sample1.4.11中把链代码复制到宿主机怪哉链代码的位置，复制成功，在cli容器中查看链码已经正常存在
 
-安装链代码的命令如下截图
-
-![ ](/home/aaa/.config/tencent-qq//AppData/file//sendpix1.jpg)
-
-> <font color="red">尝试几次都失败了，我感觉是因为引入的包有问题，所以我将例子中的chaincode中的abac文件也复制到itcast的chaincode中（为了保险，我也把abac中的go也单独复制过来，具体见下图），结果成功！！</font>
-
-![](/home/aaa/.config/tencent-qq//AppData/file//sendpix3.jpg)
-
-
-
 ```shell
 # 进入到cli容器中
-$ root@d1661b5b04cb:/opt/gopath/src/github.com/hyperledger/fabric/peer# peer chaincode install -n testcc -v 0.1 -p github.com/chaincode/
-# 最后看到这个时说明成功（200和OK）
-2021-05-15 07:33:02.360 UTC [chaincodeCmd] install -> INFO 050 Installed remotely response:<status:200 payload:"OK" > 
+$ peer chaincode install -n testcc -v 1.0 -p github.com/chaincode/
+# 最后看到这个时说明成功（200和OK）或者通过peer命令查询已经安装的链码
+2021-05-15 07:33:02.360 UTC [chaincodeCmd] install -> INFO 050 Installed remotely response:<status:200 payload:"OK" 
 ```
 
 
@@ -1828,7 +1848,7 @@ $ root@d1661b5b04cb:/opt/gopath/src/github.com/hyperledger/fabric/peer# peer cha
 > - <font color="red">初始化链代码相当于执行init函数</font>
 > - <font color="red">只需要在一个节点上初始化即可</font>
 
-![](/home/aaa/.config/tencent-qq//AppData/file//sendpix2.jpg)
+
 
 > 注意：
 >
@@ -1836,13 +1856,35 @@ $ root@d1661b5b04cb:/opt/gopath/src/github.com/hyperledger/fabric/peer# peer cha
 > - <font color="red">-P背书策略是指这个在被使用中创建的交易时的策略，而不是本次初始化链代码而产生的交易的策略</font>
 
 ```shell
-peer chaincode instantiate -o orderer.itcast.com:7050 --tls true --cafile /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/itcast.com/msp/tlscacerts/tlsca.itcast.com-cert.pem -C mc -n testcc -l goland -v 0.1 -c '{"Args":["init","a","100","b","200"]}' -P "AND ('OrgGoMSP.member', 'OrgCppMSP.member')"
+$ peer chaincode instantiate -o orderer.itcast.com:7050 --tls true --cafile /opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/itcast.com/msp/tlscacerts/tlsca.itcast.com-cert.pem -C mc -n testcc -l golang -v 1.0 -c '{"Args":["init","a","100","b","200"]}' -P "AND ('OrgGoMSP.member', 'OrgCppMSP.member')"
+# 如果安装成功会出现一个新的容器，或者使用peer命令进行查已经实例化的链码
 ```
 
+> 查询通道中安装的链码和实例化的链码
+>
+> - `peer chaincode list -C mc --installed`
+> - `peer chaincode list -C mc --instantiated`
+
+
+
+# 6.编写go-SDK
+
+> [参考网址1](http://blog.hubwiz.com/2020/03/18/fabric-sdk-go-tutorial/)
+>
+> [参考2](https://lessisbetter.site/2019/09/02/fabric-sdk-go-chaincode/)
+
+- SDK与cli的关系
+
+  ![img](fabric配置网络.assets/20200319043657115.png)
 
 
 
 
 
+## 使用fabric-sdk-go的一般步骤
 
-> <font color="red">记录一下，标签的概念应该可以通过复合键来实现，！！！</font>
+- 为client编写配置文件config.yaml
+- 为client创建fabric sdk实例fabsdk
+- 为client创建resource manage client，简称RC，RC用来进行管理操作的client， 比如通道的创建，链码的安装、实例化和升级等
+- 为client创建channel client，简称CC，CC用来链码的调用、查询以及链码事件 的注册和取消注册
+
